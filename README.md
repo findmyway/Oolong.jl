@@ -76,7 +76,7 @@ Please contact us if you have a concrete scenario but not sure how to use this p
         3. 🧐 AlphaZero
         4. 🧐 Parameter server
 2. Stage 2
-    1. Auto1.scaling. Allow workers join/exit?
+    1. Auto scaling. Allow workers join/exit?
         1. 🧐 Custom cluster manager
     2. Dashboard
         1. 🧐 [grafana](https://grafana.com/)
@@ -85,6 +85,9 @@ Please contact us if you have a concrete scenario but not sure how to use this p
         2. 🧐 [Stipple.jl](https://github.com/GenieFramework/Stipple.jl)
     4. Tracing
         1. [opentelemetry](https://opentelemetry.io/)
+    5. Integration with Pluto.jl
+        1. 🧐 Code dependency analysis & injecting
+        2. 🧐 Project/Manifest auto installing
 1. Stage 3
     1. Drop out Distributed.jl?
         1. 🧐 `Future` will transfer the ownership of the underlying data to the caller. Not very efficient when the data is passed back and forth several times in its life circle.

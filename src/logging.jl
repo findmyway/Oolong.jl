@@ -36,7 +36,8 @@ end
 
 function create_default_fmt(with_color=false, is_expand_stack_trace=false)
     function default_fmt(iob, args)
-        level, message, _module, group, id, file, line, kw = args
+        level, message, _module, group, id, file, line, kwargs = args
+        kw = kwargs.data
         color, prefix, suffix = Logging.default_metafmt(
             level, _module, group, id, file, line
         )
