@@ -1,11 +1,3 @@
-struct Root
-    function Root()
-        local_boil(@pot DefaultLogger() name=LOGGER logger=current_logger())
-        local_boil(@pot Scheduler() name=SCHEDULER)
-        new()
-    end
-end
-
 function banner(io::IO=stdout;color=true)
     c = Base.text_colors
     tx = c[:normal] # text
@@ -41,13 +33,19 @@ function banner(io::IO=stdout;color=true)
     end
 end
 
-function start(config_file::String="Oolong.yaml";kw...)
-    config = nothing
+"""
+    start(config_file="Oolong.yml";kw...)
+    start(config::Config)
+
+Should only be called on driver.
+"""
+function start(config_file::String="Oolong.yml";kw...)
+    local config
     if isfile(config_file)
         @info "Found $config_file. Loading configs..."
         config = Configurations.from_dict(Config, YAML.load_file(config_file; dicttype=Dict{String, Any});kw...)
     else
-        @info "$config_file not found. Using default configs."
+        @info "$config_file not found in current working directory. Using default configs."
         config = Config(;kw...)
     end
     start(config)
@@ -56,15 +54,8 @@ end
 function start(config::Config)
     config.banner && banner(color=config.color)
 
-    @info "$(@__MODULE__) starting..."
-    if myid() == 1
-        local_boil(@pot Root() name=ROOT logger=current_logger())
-    end
+    config_str_buf = IOBuffer()
+    GarishPrint.pprint(config_str_buf, config; color=config.color, compact=config.compact)
+    @info "$(@__MODULE__) starting with config: $(String(take!(config_str_buf)))"
 
-    if myid() in workers()
-        local_boil(@pot LocalScheduler() name=local_scheduler())
-    end
-end
-
-function stop()
 end

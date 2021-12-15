@@ -1,11 +1,11 @@
 module Oolong
 
-const OL = Oolong
-export OL
+const O = Oolong
+export O
 
-include("config.jl")
-include("logging.jl")
-include("base.jl")
+import GarishPrint
+
+include("base/base.jl")
 include("core/core.jl")
 include("start.jl")
 

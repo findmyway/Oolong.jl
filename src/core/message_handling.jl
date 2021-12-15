@@ -7,8 +7,9 @@ function Base.put!(p::PotID, flavor)
         # TODO add test
         if e isa PotNotRegisteredError
             rethrow(e)
-        else
-            @error e
+        elseif e isa PotNotBoiledError
+            # TODO: do not boild if flavor is CloseWhenIdleMsg
+            @info "pid: $(p) is not active, boiling..."
             boil(p)
             put!(p, flavor)
         end
@@ -62,7 +63,7 @@ process(tea, msg::GetPropMsg) = getproperty(tea, msg.prop)
 
 ##### SysMsg
 
-struct Exit
+struct Exit <: AbstractSysMsg
 end
 
 const EXIT = Exit()

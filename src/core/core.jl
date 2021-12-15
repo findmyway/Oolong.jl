@@ -1,4 +1,3 @@
-include("pot_id.jl")
 include("pot.jl")
 include("message_handling.jl")
-include("scheduling.jl")
+include("builtin_pots/builtin_pots.jl")

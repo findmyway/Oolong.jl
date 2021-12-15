@@ -1,67 +1,64 @@
-# TODO: set ttl?
+const SCHEDULER = P"/sys/scheduler"
+
+local_scheduler() = SCHEDULER / "local_scheduler_$(myid())"
+
+abstract type AbstractPotRegistry end
+
+const POT_REGISTRY = Dict{PotID, NamedTuple{(:pot, :children), Tuple{Pot, Set{PotID}}}}()
+
+struct PotRegistry <: AbstractPotRegistry
+end
+
+function (r::PotRegistry)(op::Symbol, p::Pot)
+    if op === :register
+        POT_REGISTRY[p.pid] = p
+        push!(POT_REGISTRY[parent(p.pid)].children, p.pid)
+    elseif op === :rm
+        pot, children = POT_REGISTRY[p.pid]
+        for c in children
+            r(op, c)
+        end
+        delete!(POT_REGISTRY, p.pid)
+        stop(p.pid)
+    else
+        throw(ArgumentError("unknown operation: $op"))
+    end
+end
+
+register(registry::PotRegistry, p::Pot) = REGISTRY(:register, p)
+Base.rm(registry::PotRegistry, p::Pot) = REGISTRY(:rm, p)
+
+######
+
+abstract type AbstractPotStore end
+
+const POT_STORE = Dict{PotID, RemoteChannel{Channel{Any}}}()
 
 """
 Local cache on each worker to reduce remote call.
-The links may be staled.
+The reference may be staled.
 """
-const POT_LINK_CACHE = Dict{PotID, RemoteChannel{Channel{Any}}}()
+const LOCAL_POT_STORE = Dict{PotID, RemoteChannel{Channel{Any}}}()
 
-"""
-Only valid on the driver to keep track of all registered pots.
-TODO: use a kv db
-"""
-const POT_REGISTRY = Dict{PotID, Pot}()
-const POT_CHILDREN = Dict{PotID, Set{PotID}}()
-
-function is_registered(p::Pot)
-    is_exist = remotecall_wait(1) do
-        haskey(Oolong.POT_REGISTRY, p.pid)
-    end
-    is_exist[]
+struct PotStore
 end
 
-function register(p::Pot)
-    remotecall_wait(1) do
-        Oolong.POT_REGISTRY[p.pid] = p
-        children = get!(Oolong.POT_CHILDREN, parent(p.pid), Set{PotID}())
-        push!(children, p.pid)
+function (p::PotStore)(op, arg)
+    if op === :set
+        k, v = arg
+        POT_STORE[k] = v
+    elseif op === :deleted!
+        delete!(POT_STORE, arg)
+    else
+        throw(ArgumentError("unknown operation: $op"))
     end
 end
 
-function unregister(p::PotID)
-    remotecall_wait(1) do
-        delete!(Oolong.POT_REGISTRY, p)
-        delete!(Oolong.POT_CHILDREN, p)
-    end
-end
+Base.setindex!(p::PotStore, v::RemoteChannel, k::PotID) = get!(LOCAL_POT_STORE, k, POT_STORE(:set, k => v))
 
-function children(p::PotID)
-    remotecall_wait(1) do
-        # ??? data race
-        get!(Oolong.POT_CHILDREN, p, Set{PotID}())
-    end
-end
-
-function link(p::PotID, ch::RemoteChannel)
-    POT_LINK_CACHE[p] = ch
-    if myid() != 1
-        remotecall_wait(1) do
-            Oolong.POT_LINK_CACHE[p] = ch
-        end
-    end
-end
-
-function Base.getindex(p::PotID)
-    get!(POT_LINK_CACHE, p) do
-        ch = remotecall_wait(1) do
-            get(Oolong.POT_LINK_CACHE, p, nothing)
-        end
-        if isnothing(ch[])
-            boil(p)
-        else
-            ch[]
-        end
-    end
+function Base.delete!(p::PotStore, k::PotID)
+    delete!(LOCAL_POT_STORE, k)
+    POT_STORE(:delete, k)
 end
 
 whereis(p::PotID) = p[].where
